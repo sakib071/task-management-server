@@ -141,6 +141,34 @@ async function run() {
             res.send(result);
         })
 
+        app.patch('/tasks/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const task = await taskCollection.findOne({ _id: new ObjectId(id) });
+
+                if (!task) {
+                    return res.status(404).json({ message: 'Task not found' });
+                }
+
+                const updatedCompleted = !task.completed;
+
+                const result = await taskCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { completed: updatedCompleted } }
+                );
+
+                if (result.modifiedCount === 1) {
+                    res.json({ message: 'Task updated successfully', updatedCompleted });
+                } else {
+                    res.status(500).json({ message: 'Failed to update task' });
+                }
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        });
+
+
         app.delete('/tasks/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }

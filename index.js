@@ -3,7 +3,6 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -35,7 +34,7 @@ async function run() {
         //jwt related API
         app.post('/jwt', async (req, res) => {
             const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
             res.send({ token });
         })
 
@@ -56,22 +55,34 @@ async function run() {
         }
 
         // use verify admin after verifyToken
-        const verifyAdmin = async (req, res, next) => {
-            const email = req.decoded.email;
-            const query = { email: email };
-            const user = await userCollection.findOne(query);
-            const isAdmin = user?.role === 'admin';
-            if (!isAdmin) {
-                return res.status(403).send({ message: 'forbidden access' });
-            }
-            next();
-        }
+        // const verifyAdmin = async (req, res, next) => {
+        //     const email = req.decoded.email;
+        //     const query = { email: email };
+        //     const user = await userCollection.findOne(query);
+        //     const isAdmin = user?.role === 'admin';
+        //     if (!isAdmin) {
+        //         return res.status(403).send({ message: 'forbidden access' });
+        //     }
+        //     next();
+        // }
 
         //users related API
-        app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+        app.get("/users", verifyToken, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         });
+
+        app.get('/users/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            if (email !== req.decoded.email) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            res.send(user);
+        })
+
 
         // app.get('/users/admin/:email', verifyToken, async (req, res) => {
         //     const email = req.params.email;
@@ -118,6 +129,13 @@ async function run() {
             res.send(result);
         })
 
+        app.get("/tasks/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await taskCollection.findOne(query);
+            res.send(result);
+        })
+
         app.get("/tasks", async (req, res) => {
             const result = await taskCollection.find().toArray();
             res.send(result);
@@ -128,6 +146,7 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const result = await taskCollection.deleteOne(query);
             res.send(result);
+            console.log("Delete: ", res);
         })
 
         // Send a ping to confirm a successful connection
@@ -142,7 +161,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('boss is running');
+    res.send('Task is running');
 })
 
 app.listen(port, () => {
